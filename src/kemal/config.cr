@@ -6,11 +6,12 @@ module Kemal
   # Kemal.config
   # ```
   class Config
-    INSTANCE        = Config.new
-    HANDLERS        = [] of HTTP::Handler
-    CUSTOM_HANDLERS = [] of Tuple(Nil | Int32, HTTP::Handler)
-    FILTER_HANDLERS = [] of HTTP::Handler
-    ERROR_HANDLERS  = {} of Int32 => HTTP::Server::Context, Exception -> String
+    INSTANCE                  = Config.new
+    HANDLERS                  = [] of HTTP::Handler
+    CUSTOM_HANDLERS           = [] of Tuple(Nil | Int32, HTTP::Handler)
+    FILTER_HANDLERS           = [] of HTTP::Handler
+    ERROR_HANDLERS            = {} of Int32 => HTTP::Server::Context, Exception -> String
+    EXCEPTION_MAPPED_HANDLERS = {} of Exception.class => HTTP::Server::Context, Exception -> String
 
     {% if flag?(:without_openssl) %}
       @ssl : Bool?
@@ -61,6 +62,7 @@ module Kemal
       CUSTOM_HANDLERS.clear
       FILTER_HANDLERS.clear
       ERROR_HANDLERS.clear
+      EXCEPTION_MAPPED_HANDLERS.clear
     end
 
     def handlers
@@ -90,6 +92,14 @@ module Kemal
 
     def add_error_handler(status_code : Int32, &handler : HTTP::Server::Context, Exception -> _)
       ERROR_HANDLERS[status_code] = ->(context : HTTP::Server::Context, error : Exception) { handler.call(context, error).to_s }
+    end
+
+    def exception_mapped_handlers
+      EXCEPTION_MAPPED_HANDLERS
+    end
+
+    def add_exception_mapped_handlers(mapped_exception : Exception.class, &handler : HTTP::Server::Context, Exception -> _)
+      EXCEPTION_MAPPED_HANDLERS[mapped_exception] = ->(context : HTTP::Server::Context, ex : Exception) { handler.call(context, ex).to_s }
     end
 
     def extra_options(&@extra_options : OptionParser ->)

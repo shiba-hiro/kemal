@@ -6,11 +6,15 @@ module Kemal
 
     def call(context : HTTP::Server::Context)
       call_next(context)
-    rescue ex : Kemal::Exceptions::RouteNotFound
-      call_exception_with_status_code(context, ex, 404)
-    rescue ex : Kemal::Exceptions::CustomException
-      call_exception_with_status_code(context, ex, context.response.status_code)
     rescue ex : Exception
+      if Kemal.config.exception_mapped_handlers.has_key?(ex.class)
+        Kemal.config.exception_mapped_handlers[ex.class].call(context, ex)
+      elsif ex.is_a? Kemal::Exceptions::RouteNotFound
+        return call_exception_with_status_code(context, ex, 404)
+      elsif ex.is_a? Kemal::Exceptions::CustomException
+        return call_exception_with_status_code(context, ex, context.response.status_code)
+      end
+
       log("Exception: #{ex.inspect_with_backtrace}")
       return call_exception_with_status_code(context, ex, 500) if Kemal.config.error_handlers.has_key?(500)
       verbosity = Kemal.config.env == "production" ? false : true
